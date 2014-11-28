@@ -4,6 +4,7 @@ import json
 from google.appengine.api import urlfetch
 import urllib
 import hashlib
+import datetime
 
 class Event(ndb.Model):
 	user = ndb.StringProperty()
@@ -12,6 +13,7 @@ class Event(ndb.Model):
   	title = ndb.StringProperty(indexed=False)
   	destinationLoc = ndb.GeoPtProperty(required=True, default=ndb.GeoPt(0,0))
   	dateTimeToMeet = ndb.StringProperty()
+  	eventID = ndb.StringProperty()
 
 # Each app user's information
 class AppUser(ndb.Model):
@@ -205,7 +207,25 @@ class AddFriendHandler(webapp2.RequestHandler):
 
 class CreateEventHandler(webapp2.RequestHandler):
 	def post(self):
-		pass
+		dictPassed = {"CreateEventResult":"Event Create Successfully"}
+		event = Event(user = str(self.request.get("userEmail")),
+			title = str(self.request.get("eventTitle")),
+			dateTimeToMeet = str(self.request.get("dateTimeToMeet")),
+			eventID = str(self.request.get("eventTitle"))+str(datetime.datetime.now()).replace(' ',"."))
+		event.put()
+		jsonObj = json.dumps(dictPassed, sort_keys=True,indent=4, separators=(',', ': '))
+		self.response.write(jsonObj)
+
+class DeleteEventHandler(webapp2.RequestHandler):
+	def post(self):
+		dictPassed = {"DeleteEventResult":"Event Deleted Successfully"}
+		eventToBeDeleted = str(self.request.get("eventID"))
+		event_query = Event.query()
+		for event in event_query:
+			if event.eventID == eventToBeDeleted:
+				event.key.delete()
+		jsonObj = json.dumps(dictPassed, sort_keys=True,indent=4, separators=(',', ': '))
+		self.response.write(jsonObj)
 
 application = webapp2.WSGIApplication([
     ('/', LoginPage),
@@ -221,5 +241,6 @@ application = webapp2.WSGIApplication([
     ('/searchFriends',SearchFriends),
     ('/addFriendHandler',AddFriendHandler),
     ('/createEventHandler',CreateEventHandler),
+    ('/deleteEventHandler',DeleteEventHandler),
     ('/removeUserHandler',RemoveUserHandler)
 ], debug=True)
