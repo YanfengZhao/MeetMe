@@ -11,10 +11,15 @@ class Event(ndb.Model):
   	blob_key = ndb.BlobKeyProperty()
   	dateTimeCreated = ndb.DateTimeProperty(auto_now_add=True)
   	title = ndb.StringProperty(indexed=False)
-  	destinationLoc = ndb.GeoPtProperty(required=True, default=ndb.GeoPt(0,0))
   	dateTimeToMeet = ndb.StringProperty()
   	eventID = ndb.StringProperty()
-
+  	activeEvent = ndb.StringProperty() # True or False
+  	destinationLatitude = ndb.StringProperty()
+  	destinationLongitude = ndb.StringProperty()
+  	friendsEmails = ndb.StringProperty(repeated=True)
+  	currentLocations = ndb.JsonProperty()
+  	radius = ndb.StringProperty()
+  	
 # Each app user's information
 class AppUser(ndb.Model):
 	userName = ndb.StringProperty()
@@ -22,8 +27,8 @@ class AppUser(ndb.Model):
 	userPassword = ndb.StringProperty() # user password
 	blob_key = ndb.BlobKeyProperty() # profile image
 	userFriends = ndb.StringProperty(repeated=True)
-	userCurrentEvent = ndb.StructuredProperty(Event)
-	userPastEvents = ndb.StructuredProperty(Event, repeated=True)
+	userCurrentEvent = ndb.StringProperty()
+	userPastEvents = ndb.StringProperty(repeated=True)
 	userCreateDate = ndb.DateTimeProperty(auto_now_add=True)
 
 	# User Inputs
@@ -114,7 +119,7 @@ class LoginHandler(webapp2.RequestHandler):
 			else:
 				user_query = AppUser.query()
 				for user in user_query:
-					if user.userEmail == str(self.request.get("userEmail")):
+					if user.userEmail == str(self.request.get("userEmail")).lower():
 						if user.userPassword == hashlib.md5(str(self.request.get("userPwd"))).hexdigest():
 							dictPassed = {"loginResult":"Login Successful"}
 						else:
@@ -132,12 +137,13 @@ class SignUpHandler(webapp2.RequestHandler):
 				dictPassed = {"signUpResult":"Duplicated Email Error"}
 			else:
 				appUser = AppUser(
-					userEmail=str(self.request.get("userEmail")),
+					userEmail=str(self.request.get("userEmail")).lower(),
 					userPassword=hashlib.md5(str(self.request.get("userPassword"))).hexdigest(),
 					userName = str(self.request.get("userName")), 
 					currentCity = str(self.request.get("currentCity")), 
 					occupation = str(self.request.get("occupation")),
-					age = str(self.request.get("age"))
+					age = str(self.request.get("age")),
+					userCurrentEvent = "None"
 				)
 				appUser.put()
 				q.globalUserEmails.append(str(self.request.get("userEmail")))
@@ -208,11 +214,22 @@ class AddFriendHandler(webapp2.RequestHandler):
 class CreateEventHandler(webapp2.RequestHandler):
 	def post(self):
 		dictPassed = {"CreateEventResult":"Event Create Successfully"}
+		time = str(datetime.datetime.now()).replace(' ',".")
 		event = Event(user = str(self.request.get("userEmail")),
 			title = str(self.request.get("eventTitle")),
 			dateTimeToMeet = str(self.request.get("dateTimeToMeet")),
-			eventID = str(self.request.get("eventTitle"))+str(datetime.datetime.now()).replace(' ',"."))
+			eventID = str(self.request.get("eventTitle"))+time,
+			activeEvent = "True",
+			destinationLongitude = str(self.request.get("destinationLongitude")),
+			destinationLatitude = str(self.request.get("destinationLatitude")),
+			)
 		event.put()
+
+		user_query = AppUser.query()
+		for user in user_query:
+			if user.userEmail == str(self.request.get("userEmail")):
+				user.userCurrentEvent = str(self.request.get("eventTitle"))+time
+				user.put()
 		jsonObj = json.dumps(dictPassed, sort_keys=True,indent=4, separators=(',', ': '))
 		self.response.write(jsonObj)
 
@@ -221,9 +238,86 @@ class DeleteEventHandler(webapp2.RequestHandler):
 		dictPassed = {"DeleteEventResult":"Event Deleted Successfully"}
 		eventToBeDeleted = str(self.request.get("eventID"))
 		event_query = Event.query()
+		user_query = AppUser.query()
 		for event in event_query:
 			if event.eventID == eventToBeDeleted:
+				for user in user_query:
+					if user.userEmail == event.user:
+						if user.userCurrentEvent == event.eventID:
+							user.userCurrentEvent = "None"
+						if event.eventID in user.userPastEvents:
+							user.userPastEvents.remove(event.eventID)
+						user.put()
+				for friendEmail in event.friendsEmails:
+					for friend in user_query:
+						if friend.userCurrentEvent == event.eventID:
+							friend.userCurrentEvent = "None"
+						if event.eventID in friend.userPastEvents:
+							friend.userPastEvents.remove(event.eventID)
+						friend.put()
 				event.key.delete()
+		jsonObj = json.dumps(dictPassed, sort_keys=True,indent=4, separators=(',', ': '))
+		self.response.write(jsonObj)
+
+class FinishEventHandler(webapp2.RequestHandler):
+	def post(self):
+		dictPassed = {"FinishEventResult":"Event Finished Successfully"}
+		eventToBeFinished = str(self.request.get("eventID"))
+		event_query = Event.query()
+		user_query = AppUser.query()
+		for event in event_query:
+			if event.eventID == eventToBeFinished:
+				event.activeEvent = "False"
+				event.put()
+				for friendEmail in event.friendsEmails:
+					for friend in user_query:
+						if friend.userEmail == friendEmail:
+							friend.userCurrentEvent = "None"
+							friend.userPastEvents.append(eventToBeFinished)
+							friend.put()
+				for user in user_query:
+					if user.userEmail == event.user:
+						user.userCurrentEvent = "None"
+						user.userPastEvents.append(eventToBeFinished)
+						user.put()
+		jsonObj = json.dumps(dictPassed, sort_keys=True,indent=4, separators=(',', ': '))
+		self.response.write(jsonObj)
+
+class InviteFriendsHandler(webapp2.RequestHandler):
+	def post(self):
+		dictPassed = {}
+		eventID = str(self.request.get("eventID"))
+		event_query = Event.query()
+		user_query = AppUser.query()
+		for friend in user_query:
+			if friend.userEmail == str(self.request.get("friendEmail")):
+				if friend.userCurrentEvent == "None":
+					friend.userCurrentEvent = eventID
+					friend.put()
+					for event in event_query:
+						if event.eventID == eventID:
+							event.friendsEmails.append(str(self.request.get("friendEmail")))
+							event.put()
+					dictPassed = {"InviteResult":"Invite Successfully"}
+				else:
+					dictPassed = {"InviteResult":"Invite Failed. Friend is already in an event"}
+		jsonObj = json.dumps(dictPassed, sort_keys=True,indent=4, separators=(',', ': '))
+		self.response.write(jsonObj)
+
+class UninviteFriendsHandler(webapp2.RequestHandler):
+	def post(self):
+		dictPassed = {"UninviteResult":"Uninvite Successfully"}
+		eventID = str(self.request.get("eventID"))
+		event_query = Event.query()
+		user_query = AppUser.query()
+		for friend in user_query:
+			if friend.userEmail == str(self.request.get("friendEmail")):
+				friend.userCurrentEvent = "None"
+				friend.put()
+		for event in event_query:
+			if event.eventID == eventID:
+				event.friendsEmails.remove(str(self.request.get("friendEmail")))
+				event.put()
 		jsonObj = json.dumps(dictPassed, sort_keys=True,indent=4, separators=(',', ': '))
 		self.response.write(jsonObj)
 
@@ -242,5 +336,8 @@ application = webapp2.WSGIApplication([
     ('/addFriendHandler',AddFriendHandler),
     ('/createEventHandler',CreateEventHandler),
     ('/deleteEventHandler',DeleteEventHandler),
-    ('/removeUserHandler',RemoveUserHandler)
+    ('/removeUserHandler',RemoveUserHandler),
+    ('/inviteFriendsHandler',InviteFriendsHandler),
+    ('/uninviteFriendsHandler',UninviteFriendsHandler),
+    ('/finishEventHandler',FinishEventHandler)
 ], debug=True)
