@@ -145,6 +145,21 @@ class SignUpHandler(webapp2.RequestHandler):
 		jsonObj = json.dumps(dictPassed, sort_keys=True,indent=4, separators=(',', ': '))
 		self.response.write(jsonObj)
 
+class RemoveUserHandler(webapp2.RequestHandler):
+	def post(self):
+		dictPassed = {"RemoveUserResult":"RemoveUserSuccessfully"}
+		userToBeRemoved = str(self.request.get("userEmail"))
+		user_query = AppUser.query()
+		for user in user_query:
+			if user.userEmail == userToBeRemoved:
+				user.key.delete()
+		query = AllUsersEmails.query()
+		for q in query:
+			q.globalUserEmails.remove(userToBeRemoved)
+			q.put()
+		jsonObj = json.dumps(dictPassed, sort_keys=True,indent=4, separators=(',', ': '))
+		self.response.write(jsonObj)
+
 class GetUserFriendsHandler(webapp2.RequestHandler):
 	def post(self):
 		currUserEmail = str(self.request.get("userEmail"))
@@ -205,5 +220,6 @@ application = webapp2.WSGIApplication([
     ('/getUserFriendsHandler',GetUserFriendsHandler),
     ('/searchFriends',SearchFriends),
     ('/addFriendHandler',AddFriendHandler),
-    ('/createEventHandler',CreateEventHandler)
+    ('/createEventHandler',CreateEventHandler),
+    ('/removeUserHandler',RemoveUserHandler)
 ], debug=True)
