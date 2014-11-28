@@ -1,10 +1,9 @@
 import webapp2
 from google.appengine.ext import ndb
 import json
-import cgi
 from google.appengine.api import urlfetch
 import urllib
-
+import hashlib
 
 class Event(ndb.Model):
 	user = ndb.StringProperty()
@@ -114,7 +113,7 @@ class LoginHandler(webapp2.RequestHandler):
 				user_query = AppUser.query()
 				for user in user_query:
 					if user.userEmail == str(self.request.get("userEmail")):
-						if user.userPassword == str(self.request.get("userPwd")):
+						if user.userPassword == hashlib.md5(str(self.request.get("userPwd"))).hexdigest():
 							dictPassed = {"loginResult":"Login Successful"}
 						else:
 							dictPassed = {"loginResult":"Invalid Password"}
@@ -132,7 +131,7 @@ class SignUpHandler(webapp2.RequestHandler):
 			else:
 				appUser = AppUser(
 					userEmail=str(self.request.get("userEmail")),
-					userPassword=str(self.request.get("userPassword")),
+					userPassword=hashlib.md5(str(self.request.get("userPassword"))).hexdigest(),
 					userName = str(self.request.get("userName")), 
 					currentCity = str(self.request.get("currentCity")), 
 					occupation = str(self.request.get("occupation")),
@@ -180,12 +179,18 @@ class AddFriendHandler(webapp2.RequestHandler):
 		user_query = AppUser.query()
 		for user in user_query:
 			if user.userEmail == currUserEmail:
-				user.userFriends.append(str(self.request.get("friendEmail")))
-				user.put()
-				dictPassed = {"addFriendResult":"Add Successful"}
+				if str(self.request.get("friendEmail")) not in user.userFriends:
+					user.userFriends.append(str(self.request.get("friendEmail")))
+					user.put()
+					dictPassed = {"addFriendResult":"Add Successful"}
+				else:
+					dictPassed = {"addFriendResult":"This Person Is Already Your Friend"}
 		jsonObj = json.dumps(dictPassed, sort_keys=True,indent=4, separators=(',', ': '))
 		self.response.write(jsonObj)
 
+class CreateEventHandler(webapp2.RequestHandler):
+	def post(self):
+		pass
 
 application = webapp2.WSGIApplication([
     ('/', LoginPage),
@@ -199,5 +204,6 @@ application = webapp2.WSGIApplication([
     ('/homePage',HomePage),
     ('/getUserFriendsHandler',GetUserFriendsHandler),
     ('/searchFriends',SearchFriends),
-    ('/addFriendHandler',AddFriendHandler)
+    ('/addFriendHandler',AddFriendHandler),
+    ('/createEventHandler',CreateEventHandler)
 ], debug=True)
