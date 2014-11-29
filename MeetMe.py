@@ -30,6 +30,8 @@ class AppUser(ndb.Model):
 	userCurrentEvent = ndb.StringProperty()
 	userPastEvents = ndb.StringProperty(repeated=True)
 	userCreateDate = ndb.DateTimeProperty(auto_now_add=True)
+	longitude = ndb.StringProperty()
+	latitude = ndb.StringProperty()
 
 	# User Inputs
 	currentCity = ndb.StringProperty()
@@ -92,7 +94,9 @@ class SignUpHandler(webapp2.RequestHandler):
 					currentCity = str(self.request.get("currentCity")), 
 					occupation = str(self.request.get("occupation")),
 					age = str(self.request.get("age")),
-					userCurrentEvent = "None"
+					userCurrentEvent = "None",
+					latitude = "0",
+					longitude = "0"
 				)
 				appUser.put()
 				q.globalUserEmails.append(str(self.request.get("userEmail")))
@@ -162,16 +166,18 @@ class AddFriendHandler(webapp2.RequestHandler):
 
 class CreateEventHandler(webapp2.RequestHandler):
 	def post(self):
-		dictPassed = {"CreateEventResult":"Event Create Successfully"}
 		time = str(datetime.datetime.now()).replace(' ',".")
+		tempEventID = str(self.request.get("eventTitle"))+time
+		dictPassed = {"eventID":tempEventID}
 		event = Event(user = str(self.request.get("userEmail")),
 			title = str(self.request.get("eventTitle")),
 			dateTimeToMeet = str(self.request.get("dateTimeToMeet")),
-			eventID = str(self.request.get("eventTitle"))+time,
+			eventID = tempEventID,
 			activeEvent = "True",
 			destinationLongitude = str(self.request.get("destinationLongitude")),
 			destinationLatitude = str(self.request.get("destinationLatitude")),
-			radius = str(self.request.get("radius"))
+			radius = str(self.request.get("radius")),
+			currentLocations = json.dumps([])
 			)
 		event.put()
 
@@ -271,6 +277,64 @@ class UninviteFriendsHandler(webapp2.RequestHandler):
 		jsonObj = json.dumps(dictPassed, sort_keys=True,indent=4, separators=(',', ': '))
 		self.response.write(jsonObj)
 
+class UpdateGeoHandler(webapp2.RequestHandler):
+	def post(self):
+		user_query = AppUser.query()
+		for user in user_query:
+			if user.userEmail == str(self.request.get("userEmail")):
+				user.longitude = str(self.request.get("longitude"))
+				user.latitude = str(self.request.get("latitude"))
+				user.put()
+
+class CronHandler(webapp2.RequestHandler):
+	def post(self):
+		listOfLists = []
+		event_query = Event.query()
+		user_query = AppUser.query()
+		for event in event_query:
+			listOfDicts = []
+			if event.activeEvent == "True":
+				for friendEmail in event.friendsEmails:
+					for friend in user_query:
+						if friend.userEmail == friendEmail:
+							tempDict = {"userEmail":friendEmail,"latitude":friend.latitude,"longitude":friend.longitude}
+							listOfDicts.append(tempDict)
+				for user in user_query:
+					if event.user == user.userEmail:
+						tempDict = {"userEmail":event.user,"latitude":user.latitude,"longitude":user.longitude}
+						listOfDicts.append(tempDict)
+			event.currentLocations = json.dumps(listOfDicts)
+			event.put()
+			listOfLists.append(listOfDicts)
+		jsonObj = json.dumps(listOfLists, sort_keys=True,indent=4, separators=(',', ': '))
+		self.response.write(jsonObj)
+
+class GetUserCurrentEventInformation(webapp2.RequestHandler):
+	def post(self):
+		dictPassed = {}
+		userEmail = str(self.request.get("userEmail"))
+		event_query = Event.query()
+		user_query = AppUser.query()
+		for user in user_query:
+			if user.userEmail == userEmail:
+				for event in event_query:
+					if user.userCurrentEvent == event.eventID:
+						dictPassed = {"radius":event.radius,"destinationLongitude":event.destinationLongitude,"destinationLatitude":event.destinationLatitude,"title":event.title}
+
+		jsonObj = json.dumps(dictPassed, sort_keys=True,indent=4, separators=(',', ': '))
+		self.response.write(jsonObj)
+
+class GetUserCurrentLocation(webapp2.RequestHandler):
+	def post(self):
+		userEmail = str(self.request.get("userEmail"))
+		event_query = Event.query()
+		user_query = AppUser.query()
+		for user in user_query:
+			if user.userEmail == userEmail:
+				for event in event_query:
+					if user.userCurrentEvent == event.eventID:
+						self.response.write(event.currentLocations)
+
 application = webapp2.WSGIApplication([
     ('/loginHandler',LoginHandler),
     ('/signUpHandler',SignUpHandler),
@@ -283,5 +347,9 @@ application = webapp2.WSGIApplication([
     ('/removeUserHandler',RemoveUserHandler),
     ('/inviteFriendsHandler',InviteFriendsHandler),
     ('/uninviteFriendsHandler',UninviteFriendsHandler),
-    ('/finishEventHandler',FinishEventHandler)
+    ('/finishEventHandler',FinishEventHandler),
+    ('/cronHandler',CronHandler),
+    ('/updateGeoHandler',UpdateGeoHandler),
+    ('/getUserCurrentEventInformation',GetUserCurrentEventInformation),
+    ('/getUserCurrentLocation',GetUserCurrentLocation)
 ], debug=True)
