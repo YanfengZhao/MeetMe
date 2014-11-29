@@ -43,69 +43,18 @@ if AllUsersEmails.query().get() == None:
 	allUsersEmails = AllUsersEmails()
 	allUsersEmails.put()
 	
-class LoginPage(webapp2.RequestHandler):
-    def get(self):
-        dictPassed = {'pageName':"MainPage"}
-        jsonObj = json.dumps(dictPassed, sort_keys=True,indent=4, separators=(',', ': '))
-        self.response.write(jsonObj)
-
-class HomePage(webapp2.RequestHandler):
-	def get(self):
-
+class CheckCurrentEventAvailability(webapp2.RequestHandler):
+	def post(self):
 		# check if the current user has current event
-		currUserEmail = "kevzsolo@gmail.com"
+		currUserEmail = str(self.request.get("userEmail"))
 		dictPassed = {}
 		user_query = AppUser.query()
 		for user in user_query:
 			if user.userEmail == currUserEmail:
-				if user.userCurrentEvent is None or user.userCurrentEvent == "None": 
+				if user.userCurrentEvent == "None": 
 					dictPassed = {"currentEventAvailable":"No"}
 				else:
 					dictPassed = {"currentEventAvailable":"Yes"}
-		jsonObj = json.dumps(dictPassed, sort_keys=True,indent=4, separators=(',', ': '))
-		self.response.write(jsonObj)
-
-class CreateEventSelectFriends(webapp2.RequestHandler):
-	def get(self):
-		self.response.headers['Content-Type'] = 'text/plain'
-		self.response.write('This is where you select your friends to join your event')
-		dictPassed = {'pageName':"CreateEventSelectFriends"}
-		jsonObj = json.dumps(dictPassed, sort_keys=True,indent=4, separators=(',', ': '))
-		self.response.write(jsonObj)
-
-class CreateEventSelectLocation(webapp2.RequestHandler):
-	def get(self):
-		self.response.headers['Content-Type'] = 'text/plain'
-		self.response.write('This is where you select your event location')
-		dictPassed = {'pageName':"CreateEventSelectLocation"}
-		jsonObj = json.dumps(dictPassed, sort_keys=True,indent=4, separators=(',', ': '))
-		self.response.write(jsonObj)
-
-class ViewYourEvents(webapp2.RequestHandler):
-	def get(self):
-		self.response.headers['Content-Type'] = 'text/plain'
-		self.response.write('Here you can view your past and current events')
-
-		#find current user
-		user_query = AppUser.query()
-
-		dictPassed = {'pageName':"ViewYourEvents"}
-		jsonObj = json.dumps(dictPassed, sort_keys=True,indent=4, separators=(',', ': '))
-		self.response.write(jsonObj)
-
-class Settings(webapp2.RequestHandler):
-	def get(self):
-		self.response.headers['Content-Type'] = 'text/plain'
-		self.response.write('You can set your settings here')
-		dictPassed = {'pageName':"Settings"}
-		jsonObj = json.dumps(dictPassed, sort_keys=True,indent=4, separators=(',', ': '))
-		self.response.write(jsonObj)
-
-class ManageFriends(webapp2.RequestHandler):
-	def get(self):
-		self.response.headers['Content-Type'] = 'text/plain'
-		self.response.write('You can manage your friends here')
-		dictPassed = {'pageName':"ManageFriends"}
 		jsonObj = json.dumps(dictPassed, sort_keys=True,indent=4, separators=(',', ': '))
 		self.response.write(jsonObj)
 
@@ -222,6 +171,7 @@ class CreateEventHandler(webapp2.RequestHandler):
 			activeEvent = "True",
 			destinationLongitude = str(self.request.get("destinationLongitude")),
 			destinationLatitude = str(self.request.get("destinationLatitude")),
+			radius = str(self.request.get("radius"))
 			)
 		event.put()
 
@@ -322,15 +272,9 @@ class UninviteFriendsHandler(webapp2.RequestHandler):
 		self.response.write(jsonObj)
 
 application = webapp2.WSGIApplication([
-    ('/', LoginPage),
-    ('/createEventSelectFriends',CreateEventSelectFriends),
-    ('/createEventSelectLocation',CreateEventSelectLocation),
-    ('/viewYourEvents',ViewYourEvents),
-    ('/settings',Settings),
-    ('/manageFriends',ManageFriends),
     ('/loginHandler',LoginHandler),
     ('/signUpHandler',SignUpHandler),
-    ('/homePage',HomePage),
+    ('/checkCurrentEventAvailability',CheckCurrentEventAvailability),
     ('/getUserFriendsHandler',GetUserFriendsHandler),
     ('/searchFriends',SearchFriends),
     ('/addFriendHandler',AddFriendHandler),
