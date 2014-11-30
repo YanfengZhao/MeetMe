@@ -10,6 +10,7 @@ class Event(ndb.Model):
 	user = ndb.StringProperty()
   	blob_key = ndb.BlobKeyProperty()
   	dateTimeCreated = ndb.DateTimeProperty(auto_now_add=True)
+  	dateTimeFinished = ndb.DateTimeProperty()
   	title = ndb.StringProperty(indexed=False)
   	dateTimeToMeet = ndb.StringProperty()
   	eventID = ndb.StringProperty()
@@ -143,7 +144,12 @@ class SearchFriends(webapp2.RequestHandler):
 		user_query = AppUser.query()
 		for user in user_query:
 			if userInputString in user.userName or userInputString in user.userEmail:
-				tempDict = {"userName":user.userName,"userEmail":user.userEmail,"currentCity":user.currentCity, "age":user.age}
+				tempDict = {
+				"userName":user.userName,
+				"userEmail":user.userEmail,
+				"currentCity":user.currentCity, 
+				"age":user.age
+				}
 				usersFound.append(tempDict)
 		jsonObj = json.dumps(usersFound, sort_keys=True,indent=4, separators=(',', ': '))
 		self.response.write(jsonObj)
@@ -223,6 +229,7 @@ class FinishEventHandler(webapp2.RequestHandler):
 		user_query = AppUser.query()
 		for event in event_query:
 			if event.eventID == eventToBeFinished:
+				event.dateTimeFinished = datetime.datetime.now()
 				event.activeEvent = "False"
 				event.put()
 				for friendEmail in event.friendsEmails:
@@ -297,7 +304,11 @@ class CronHandler(webapp2.RequestHandler):
 				for friendEmail in event.friendsEmails:
 					for friend in user_query:
 						if friend.userEmail == friendEmail:
-							tempDict = {"userEmail":friendEmail,"latitude":friend.latitude,"longitude":friend.longitude}
+							tempDict = {
+							"userEmail":friendEmail,
+							"latitude":friend.latitude,
+							"longitude":friend.longitude
+							}
 							listOfDicts.append(tempDict)
 				for user in user_query:
 					if event.user == user.userEmail:
@@ -319,7 +330,13 @@ class GetUserCurrentEventInformation(webapp2.RequestHandler):
 			if user.userEmail == userEmail:
 				for event in event_query:
 					if user.userCurrentEvent == event.eventID:
-						dictPassed = {"radius":event.radius,"destinationLongitude":event.destinationLongitude,"destinationLatitude":event.destinationLatitude,"title":event.title}
+						dictPassed = {
+						"radius":event.radius,
+						"destinationLongitude":event.destinationLongitude,
+						"destinationLatitude":event.destinationLatitude,
+						"title":event.title, 
+						"eventID":event.eventID
+						}
 
 		jsonObj = json.dumps(dictPassed, sort_keys=True,indent=4, separators=(',', ': '))
 		self.response.write(jsonObj)
@@ -334,6 +351,30 @@ class GetUserCurrentLocation(webapp2.RequestHandler):
 				for event in event_query:
 					if user.userCurrentEvent == event.eventID:
 						self.response.write(event.currentLocations)
+
+class DisplayPastEventHandler(webapp2.RequestHandler):
+	def post(self):
+		userEmail = str(self.request.get("userEmail"))
+		event_query = Event.query()
+		user_query = AppUser.query()
+		pastEvents = []
+		for user in user_query:
+			if user.userEmail == userEmail:
+				for pastEvent in user.userPastEvents:
+					for event in event_query:
+						if pastEvent == event.eventID:
+							tempDict = {
+							"eventTitle":event.title,
+							"eventID":event.eventID,
+							"eventCreator":event.user,
+							"numberOfFriendsInvited":str(len(event.friendsEmails)),
+							"dateTimeCreated":str(event.dateTimeCreated),
+							"dateTimeOfMeeting":str(event.dateTimeToMeet),
+							"dateTimeFinished": str(event.dateTimeFinished)
+							}
+							pastEvents.append(tempDict)
+		jsonObj = json.dumps(pastEvents, sort_keys=True,indent=4, separators=(',', ': '))
+		self.response.write(jsonObj)
 
 application = webapp2.WSGIApplication([
     ('/loginHandler',LoginHandler),
@@ -351,5 +392,6 @@ application = webapp2.WSGIApplication([
     ('/cronHandler',CronHandler),
     ('/updateGeoHandler',UpdateGeoHandler),
     ('/getUserCurrentEventInformation',GetUserCurrentEventInformation),
-    ('/getUserCurrentLocation',GetUserCurrentLocation)
+    ('/getUserCurrentLocation',GetUserCurrentLocation),
+    ('/displayPastEventHandler',DisplayPastEventHandler)
 ], debug=True)
