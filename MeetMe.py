@@ -143,7 +143,7 @@ class SearchFriends(webapp2.RequestHandler):
 		userInputString = self.request.get("searchContent")
 		user_query = AppUser.query()
 		for user in user_query:
-			if userInputString in user.userName or userInputString in user.userEmail:
+			if str(userInputString).lower() in str(user.userName).lower() or str(userInputString) in str(user.userEmail):
 				tempDict = {
 				"userName":user.userName,
 				"userEmail":user.userEmail,
@@ -312,7 +312,11 @@ class CronHandler(webapp2.RequestHandler):
 							listOfDicts.append(tempDict)
 				for user in user_query:
 					if event.user == user.userEmail:
-						tempDict = {"userEmail":event.user,"latitude":user.latitude,"longitude":user.longitude}
+						tempDict = {
+						"userEmail":event.user,
+						"latitude":user.latitude,
+						"longitude":user.longitude
+						}
 						listOfDicts.append(tempDict)
 			event.currentLocations = json.dumps(listOfDicts)
 			event.put()
