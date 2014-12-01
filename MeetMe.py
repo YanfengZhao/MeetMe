@@ -45,7 +45,12 @@ class AllUsersEmails(ndb.Model):
 if AllUsersEmails.query().get() == None:
 	allUsersEmails = AllUsersEmails()
 	allUsersEmails.put()
-	
+
+'''
+Functionality: check if the user has a current event
+Input: user's Email
+Output: availability of event (Yes or No)
+'''
 class CheckCurrentEventAvailability(webapp2.RequestHandler):
 	def post(self):
 		# check if the current user has current event
@@ -61,6 +66,13 @@ class CheckCurrentEventAvailability(webapp2.RequestHandler):
 		jsonObj = json.dumps(dictPassed, sort_keys=True,indent=4, separators=(',', ': '))
 		self.response.write(jsonObj)
 
+'''
+Functionality: log the user in
+Input: 
+	1. user's email
+	2. user's password
+Output: login Result (User Email Does Not Exist, Login Successful or Invalid Password)
+'''
 class LoginHandler(webapp2.RequestHandler):
 	def post(self):
 		dictPassed = {}
@@ -79,6 +91,17 @@ class LoginHandler(webapp2.RequestHandler):
 		jsonObj = json.dumps(dictPassed, sort_keys=True,indent=4, separators=(',', ': '))
 		self.response.write(jsonObj)
 
+'''
+Functionality: Sign up a new user
+Input: 
+	1. user's email
+	2. user's password
+	3. user's user name
+	4. user's curre city
+	5. user's occupation
+	6. user's age
+Output: sign up results (Duplicated Email Error or Signup Successful)
+'''
 class SignUpHandler(webapp2.RequestHandler):
 	def post(self):
 		dictPassed = {}
@@ -107,6 +130,11 @@ class SignUpHandler(webapp2.RequestHandler):
 		jsonObj = json.dumps(dictPassed, sort_keys=True,indent=4, separators=(',', ': '))
 		self.response.write(jsonObj)
 
+'''
+Functionality: Remove a user from database
+Input: user's email
+Output: remove user result
+'''
 class RemoveUserHandler(webapp2.RequestHandler):
 	def post(self):
 		dictPassed = {"RemoveUserResult":"RemoveUserSuccessfully"}
@@ -122,6 +150,11 @@ class RemoveUserHandler(webapp2.RequestHandler):
 		jsonObj = json.dumps(dictPassed, sort_keys=True,indent=4, separators=(',', ': '))
 		self.response.write(jsonObj)
 
+'''
+Functionality: Get user's list of friends
+Input: user's email
+Output: list of friends
+'''
 class GetUserFriendsHandler(webapp2.RequestHandler):
 	def post(self):
 		currUserEmail = str(self.request.get("userEmail"))
@@ -137,6 +170,11 @@ class GetUserFriendsHandler(webapp2.RequestHandler):
 		jsonObj = json.dumps(friendList, sort_keys=True,indent=4, separators=(',', ': '))
 		self.response.write(jsonObj)
 
+'''
+Functionality: search for new friends and display list of matching results
+Input: search content
+Output: list of people that match search content
+'''
 class SearchFriends(webapp2.RequestHandler):
 	def post(self):
 		usersFound = []
@@ -154,6 +192,13 @@ class SearchFriends(webapp2.RequestHandler):
 		jsonObj = json.dumps(usersFound, sort_keys=True,indent=4, separators=(',', ': '))
 		self.response.write(jsonObj)
 
+'''
+Functionality: add a new friend to user's friend list
+Input:
+	1. user's email
+	2. friend's email
+Output: add friend result(Add Failed, Add Successful, or This Person Is Already Your Friend)
+'''
 class AddFriendHandler(webapp2.RequestHandler):
 	def post(self):
 		dictPassed = {"addFriendResult":"Add Failed"}
@@ -170,6 +215,17 @@ class AddFriendHandler(webapp2.RequestHandler):
 		jsonObj = json.dumps(dictPassed, sort_keys=True,indent=4, separators=(',', ': '))
 		self.response.write(jsonObj)
 
+'''
+Functionality: create a new event
+Input: 
+	1. event's title
+	2. creator's email
+	3. event's date and time of meeting
+	4. destination longitude
+	5. destination latitude
+	6. geofence radius
+Output: event's ID
+'''
 class CreateEventHandler(webapp2.RequestHandler):
 	def post(self):
 		time = str(datetime.datetime.now()).replace(' ',".")
@@ -195,6 +251,11 @@ class CreateEventHandler(webapp2.RequestHandler):
 		jsonObj = json.dumps(dictPassed, sort_keys=True,indent=4, separators=(',', ': '))
 		self.response.write(jsonObj)
 
+'''
+Functionality: delete an event
+Input: event's ID
+Output: delete event result
+'''
 class DeleteEventHandler(webapp2.RequestHandler):
 	def post(self):
 		dictPassed = {"DeleteEventResult":"Event Deleted Successfully"}
@@ -221,6 +282,11 @@ class DeleteEventHandler(webapp2.RequestHandler):
 		jsonObj = json.dumps(dictPassed, sort_keys=True,indent=4, separators=(',', ': '))
 		self.response.write(jsonObj)
 
+'''
+Functionality: complete an event, make a user's current event to None and move the event into user's past event list
+Input: event's ID
+Output: finish event result
+'''
 class FinishEventHandler(webapp2.RequestHandler):
 	def post(self):
 		dictPassed = {"FinishEventResult":"Event Finished Successfully"}
@@ -246,6 +312,13 @@ class FinishEventHandler(webapp2.RequestHandler):
 		jsonObj = json.dumps(dictPassed, sort_keys=True,indent=4, separators=(',', ': '))
 		self.response.write(jsonObj)
 
+'''
+Functionality: invite a friend to the event
+Input:
+	1. event's ID
+	2. friend's email
+Output: invite result (Invite Successfully or Invite Failed)
+'''
 class InviteFriendsHandler(webapp2.RequestHandler):
 	def post(self):
 		dictPassed = {}
@@ -267,6 +340,13 @@ class InviteFriendsHandler(webapp2.RequestHandler):
 		jsonObj = json.dumps(dictPassed, sort_keys=True,indent=4, separators=(',', ': '))
 		self.response.write(jsonObj)
 
+'''
+Functionality: uninvite a friend from an event
+Input:
+	1. event's ID
+	2. friend's email
+Output: uninvite result
+'''
 class UninviteFriendsHandler(webapp2.RequestHandler):
 	def post(self):
 		dictPassed = {"UninviteResult":"Uninvite Successfully"}
@@ -284,6 +364,14 @@ class UninviteFriendsHandler(webapp2.RequestHandler):
 		jsonObj = json.dumps(dictPassed, sort_keys=True,indent=4, separators=(',', ': '))
 		self.response.write(jsonObj)
 
+'''
+Functionality: get the new location of a user and update it in datastore
+Input:
+	1. user's email
+	2. user's longitude
+	3. user's latitude
+Output: None
+'''
 class UpdateGeoHandler(webapp2.RequestHandler):
 	def post(self):
 		user_query = AppUser.query()
@@ -293,6 +381,11 @@ class UpdateGeoHandler(webapp2.RequestHandler):
 				user.latitude = str(self.request.get("latitude"))
 				user.put()
 
+'''
+Functionality: for every active event, update the location of every user in the event in json property 
+Input: None
+Output: list of users and their locations updated 
+'''
 class CronHandler(webapp2.RequestHandler):
 	def post(self):
 		listOfLists = []
@@ -324,6 +417,16 @@ class CronHandler(webapp2.RequestHandler):
 		jsonObj = json.dumps(listOfLists, sort_keys=True,indent=4, separators=(',', ': '))
 		self.response.write(jsonObj)
 
+'''
+Functionality: get user's current event information
+Input: user's email
+Output: user's current event information:
+	1. geofence radius
+	2. destination longitude
+	3. destination latitude
+	4. event's title
+	5. event's ID
+'''
 class GetUserCurrentEventInformation(webapp2.RequestHandler):
 	def post(self):
 		dictPassed = {}
@@ -345,6 +448,11 @@ class GetUserCurrentEventInformation(webapp2.RequestHandler):
 		jsonObj = json.dumps(dictPassed, sort_keys=True,indent=4, separators=(',', ': '))
 		self.response.write(jsonObj)
 
+'''
+Functionality: get all users' current locations in an active event
+Input: a user's email in an active event
+Output: all user's location information in the same active event
+'''
 class GetUserCurrentLocation(webapp2.RequestHandler):
 	def post(self):
 		userEmail = str(self.request.get("userEmail"))
@@ -356,6 +464,18 @@ class GetUserCurrentLocation(webapp2.RequestHandler):
 					if user.userCurrentEvent == event.eventID:
 						self.response.write(event.currentLocations)
 
+'''
+Functionality: return all the event a user has participated in
+Input: user's email
+Output: a list of user's past events and their information including
+	1. event's title
+	2. event's ID
+	3. event's creator
+	4. number of friends got invited to the event
+	5. date and time the event was created
+	6. date and time the event was finished
+	7. meeting time
+'''
 class DisplayPastEventHandler(webapp2.RequestHandler):
 	def post(self):
 		userEmail = str(self.request.get("userEmail"))
